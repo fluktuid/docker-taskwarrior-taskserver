@@ -13,6 +13,7 @@ jobs:
       matrix:
         img: [taskd]
         os: [linux]
+        version: [latest, micro]
     runs-on: ubuntu-latest
     steps:
       -
@@ -34,10 +35,10 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: "{{defaultContext}}:docker"
-          file: "Dockerfile"
+          file: "Dockerfile.${{ matrix.version }}"
           push: true
           platforms: linux/amd64,linux/arm/v7,linux/arm64
           build-args:
             BUILDPLATFORM=${{ matrix.os }}/amd64
           tags: |
-            ghcr.io/${{ github.repository }}/${{ matrix.img }}:latest
+            ghcr.io/${{ github.repository }}/${{ matrix.img }}:${{ matrix.version }}

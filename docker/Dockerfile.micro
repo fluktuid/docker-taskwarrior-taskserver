@@ -1,0 +1,52 @@
+ARG DEBIAN_VERSION=bookworm
+ARG UID=10001
+
+FROM debian:${DEBIAN_VERSION} as builder
+
+RUN apt-get update && apt-get -y install taskwarrior uuid-dev gnutls-bin libgnutls28-dev cmake g++ curl net-tools
+RUN curl -LJo /taskd.tar.gz https://github.com/GothenburgBitFactory/taskserver/releases/download/v1.1.0/taskd-1.1.0.tar.gz \
+    && tar -xzf /taskd.tar.gz \
+    && cd /taskd-1.1.0/ \
+    && cmake -DCMAKE_BUILD_TYPE=release . \
+    && make \
+    && make install \
+    && cp -R pki /pki
+#    && rm -Rf /taskd-1.1.0/
+
+RUN useradd taskd --uid 1000
+ENV TASKDDATA=/data
+RUN mkdir -p $TASKDDATA && chown -R taskd /data /pki
+COPY init.sh /init.sh
+RUN cp /usr/local/bin/taskd /taskd
+RUN mkdir /my_tmp
+RUN chown -R ${10001}:${10001} /my_tmp
+
+
+FROM debian:${DEBIAN_VERSION}
+ARG UID=10001
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# Import the user and group files from the builder.
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+# create tmp directory
+COPY --from=builder --chown=${UID}:${UID} /my_tmp /tmp
+# copy project data
+COPY --from=builder --chown=${UID}:${UID} /pki /pki
+COPY --from=builder --chown=${UID}:${UID} /init.sh /init.sh
+COPY --from=builder --chown=${UID}:${UID} /data /data
+
+COPY --from=builder --chown=${UID}:${UID} /taskd /taskd
+COPY --from=builder --chown=${UID}:${UID} /my_tmp /tmp
+
+USER ${UID}
+ENV TASKDDATA=/data
+VOLUME /data
+
+LABEL org.opencontainers.image.source=https://github.com/fluktuid/docker-taskwarrior-taskserver
+
+RUN /taskd init
+
+# ENTRYPOINT /init.sh
+ENTRYPOINT [ "/taskd" ]
+CMD [ "server", "--data", "/data" ]
