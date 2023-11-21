@@ -1,7 +1,9 @@
-FROM debian:10
+ARG DEBIAN_VERSION=bookworm
+
+FROM debian:${DEBIAN_VERSION}
 
 RUN apt-get update && apt-get -y install taskwarrior uuid-dev gnutls-bin libgnutls28-dev cmake g++ curl net-tools
-RUN curl -o /taskd.tar.gz https://taskwarrior.org/download/taskd-1.1.0.tar.gz \
+RUN curl -LJo /taskd.tar.gz https://github.com/GothenburgBitFactory/taskserver/releases/download/v1.1.0/taskd-1.1.0.tar.gz \
     && tar -xzf /taskd.tar.gz \
     && cd /taskd-1.1.0/ \
     && cmake -DCMAKE_BUILD_TYPE=release . \
